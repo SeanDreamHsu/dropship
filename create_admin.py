@@ -1,6 +1,7 @@
 # create_admin.py
 
-from app import app, db, User
+from .app import app, db
+from .models import User
 from werkzeug.security import generate_password_hash
 
 # Use the Flask application context to access the database
