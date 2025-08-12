@@ -7,13 +7,12 @@ from collections import defaultdict
 import pytz
 import csv
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_mail import Mail, Message
+from flask_login import login_user, logout_user, login_required, current_user
+from flask_mail import Message
 from dotenv import load_dotenv
-from flask_bcrypt import Bcrypt
 from sqlalchemy import or_
+
+from extensions import db, login_manager, mail, bcrypt
 
 # Load environment variables from .env file (should be at the very top)
 load_dotenv()
@@ -43,13 +42,8 @@ else:
     print("then install system dependencies as per WeasyPrint documentation.")
     print("------------------------------------------------------------------------------------\n")
 
-# Initialize extensions without linking to 'app' yet
-db = SQLAlchemy()
-login_manager = LoginManager()
+# Configure login manager
 login_manager.login_view = 'login'
-mail = Mail() # Initialize Mail without app
-# For Bcrypt, it's often initialized directly with the app, but we can do it after app creation too
-bcrypt = None # Initialize globally, then init_app in factory
 
 # Company Information (can be stored in DB or .env if needed)
 COMPANY_NAME = os.getenv('COMPANY_NAME', 'MAIL+PC')
@@ -88,7 +82,6 @@ def send_email(to_email, subject, html_body):
 
 # --- APPLICATION FACTORY FUNCTION ---
 def create_app():
-    global bcrypt # Declare bcrypt as global to modify it
     app = Flask(__name__)
 
     # Flask App Configuration
@@ -108,7 +101,7 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
-    bcrypt = Bcrypt(app) # Initialize bcrypt here with the app
+    bcrypt.init_app(app)
 
     # --- Routes ---
     @app.route('/')
