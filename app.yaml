@@ -1,0 +1,20 @@
+runtime: python311  # Updated to a more recent and supported Python version
+entrypoint: gunicorn -b :$PORT "app:create_app()"  # Tells Gunicorn to find the 'app' object in 'app.py'
+
+env_variables:
+  # The SECRET_KEY is used by Flask for session management and security.
+  # Replace 'your-super-secret-key' with a strong, unique value.
+  SECRET_KEY: 618ce0ab6b0df3851221878992259a64f47beefc64a37c44
+  
+  # This is your database connection string. It will vary based on your
+  # database provider and configuration. Replace the example with your actual
+  # connection string.
+  DATABASE_URL: 'postgresql://postgres:Adam3920$@/site?host=/cloudsql/fedex-467920:us-west2:site'
+  
+  # These variables are for Flask-Mail.
+  # If your application sends emails, replace these with your credentials.
+  MAIL_SERVER: 'smtp.gmail.com'
+  MAIL_PORT: '587'
+  MAIL_USE_TLS: 'true'
+  MAIL_USERNAME: 'lee@mailpluspc.com'
+  MAIL_PASSWORD: 'mexq osug jmac ugtp'

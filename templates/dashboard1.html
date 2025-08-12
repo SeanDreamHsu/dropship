@@ -1,0 +1,263 @@
+{# In templates/dashboard.html #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { padding-top: 56px; } /* Adjust for fixed navbar */
+        .dashboard-container { margin-top: 20px; }
+        .tracking-group-card { margin-bottom: 20px; }
+        .tracking-item-detail {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px dotted #e9ecef;
+        }
+        .tracking-item-detail:last-child {
+            border-bottom: none;
+        }
+        .tracking-item-detail span {
+            flex-grow: 1;
+        }
+        .tracking-item-detail .actions {
+            margin-left: 15px;
+            white-space: nowrap; /* Prevent buttons from wrapping */
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">Mail+PC Drop-off</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Hello, {{ current_user.phone_number }}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container dashboard-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <h2 class="mb-4">Your Dashboard</h2>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">Add New Package Drop-off</div>
+                    <div class="card-body">
+                        <form action="{{ url_for('add_tracking') }}" method="POST">
+                            <div class="mb-3">
+                                <label for="tracking_number" class="form-label">Tracking Number</label>
+                                <input type="text" class="form-control" id="tracking_number" name="tracking_number" placeholder="Enter tracking number" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Package</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">Summary</div>
+                    <div class="card-body">
+                        <h5 class="card-title">Total Packages: {{ total_package_count }}</h5>
+                        <p class="card-text">Manage your package drop-off records here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="mt-5 mb-3">Your Drop-off History (Grouped by Day)</h3>
+
+        {% if grouped_trackings %}
+            {% for group in grouped_trackings %}
+            <div class="card tracking-group-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Drop-off Date: {{ group.date }}</strong>
+                        <span class="badge bg-info text-dark ms-3">{{ group.package_count }} Package{{ 's' if group.package_count != 1 }}</span>
+                    </div>
+                    <div>
+                        {# Use the reference_id (ID of one tracking from this day) for all actions #}
+                        <button type="button" class="btn btn-sm btn-outline-info me-2 view-details-btn" data-bs-toggle="modal" data-bs-target="#detailsModal" data-tracking-id="{{ group.reference_id }}">
+                            <i class="fas fa-eye"></i> View All Receipts for this Day
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success email-receipt-btn" data-bs-toggle="modal" data-bs-target="#emailModal" data-tracking-id="{{ group.reference_id }}">
+                            <i class="fas fa-envelope"></i> Email All Receipts for this Day
+                        </button>
+                       
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">Individual Tracking Numbers for this Day:</h6>
+                    <ul class="list-unstyled">
+                        {% for tracking in group.trackings %}
+                        <li class="tracking-item-detail">
+                            <span>
+                                <strong>{{ loop.index }}.</strong> {{ tracking.tracking_number }}
+                                <small class="text-muted ms-2">({{ tracking.timestamp.strftime('%I:%M %p %Z') }})</small>
+                            </span>
+                            <div class="actions">
+                                {# You can add individual actions here if truly needed, but the main ones are per-day now #}
+                                <form action="{{ url_for('delete_tracking', tracking_id=tracking.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete tracking number {{ tracking.tracking_number }}?')">
+                                        <i class="fas fa-trash-alt"></i> Delete Individual
+                                    </button>
+                                </form>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No tracking records found yet. Add a new package above!</p>
+        {% endif %}
+    </div>
+
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailsModalLabel">Receipt Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="receiptContent">
+                    Loading receipt...
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="printReceiptFromModalBtn">Print Receipt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="emailReceiptForm" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="emailModalLabel">Email Receipt</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="emailTrackingId" name="tracking_id">
+                        <div class="mb-3">
+                            <label for="recipientEmail" class="form-label">Recipient Email</label>
+                            <input type="email" class="form-control" id="recipientEmail" name="recipient_email" placeholder="name@example.com" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Send Email</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Handle View Details button click
+            $('.view-details-btn').on('click', function() {
+                var trackingId = $(this).data('tracking-id');
+                $.ajax({
+                    url: '/get-tracking-details/' + trackingId,
+                    method: 'GET',
+                    success: function(response) {
+                        if (response.success) {
+                            $('#receiptContent').html(response.receiptHtml);
+                        } else {
+                            $('#receiptContent').html('<p class="text-danger">' + response.message + '</p>');
+                        }
+                    },
+                    error: function() {
+                        $('#receiptContent').html('<p class="text-danger">Error loading receipt details.</p>');
+                    }
+                });
+            });
+
+            // Handle Email Receipt button click (to populate modal)
+            $('.email-receipt-btn').on('click', function() {
+                var trackingId = $(this).data('tracking-id');
+                $('#emailTrackingId').val(trackingId);
+            });
+
+            // Handle Email Receipt form submission
+            $('#emailReceiptForm').on('submit', function(e) {
+                e.preventDefault();
+                var trackingId = $('#emailTrackingId').val();
+                var recipientEmail = $('#recipientEmail').val();
+
+                $.ajax({
+                    url: '/email-receipt-dashboard/' + trackingId,
+                    method: 'POST',
+                    data: { recipient_email: recipientEmail },
+                    success: function(response) {
+                        alert(response.message);
+                        if (response.success) {
+                            $('#emailModal').modal('hide');
+                            $('#recipientEmail').val(''); // Clear email field
+                        }
+                    },
+                    error: function() {
+                        alert('Failed to send email.');
+                    }
+                });
+            });
+
+            // Handle Print button click within the Details Modal
+            $('#printReceiptFromModalBtn').on('click', function() {
+                var receiptContent = document.getElementById('receiptContent').innerHTML;
+
+                // Create a new window to print the content
+                var printWindow = window.open('', '_blank');
+                printWindow.document.write('<html><head><title>Receipt</title>');
+                // Include Bootstrap CSS for styling in the print preview
+                printWindow.document.write('<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">');
+                printWindow.document.write('<style>');
+                printWindow.document.write('body { font-family: sans-serif; margin: 20px; }');
+                printWindow.document.write('.receipt-container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }');
+                printWindow.document.write('.receipt-header { text-align: center; margin-bottom: 20px; }');
+                printWindow.document.write('.receipt-details strong { display: inline-block; width: 150px; }');
+                printWindow.document.write('@media print { body { -webkit-print-color-adjust: exact; } }'); /* For exact color printing */
+                printWindow.document.write('</style>');
+                printWindow.document.write('</head><body>');
+                printWindow.document.write(receiptContent);
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                printWindow.focus();
+                printWindow.print();
+                // printWindow.close(); // You might comment this out to let user close after printing
+            });
+        });
+    </script>
+</body>
+</html>
