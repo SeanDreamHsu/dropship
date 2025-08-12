@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from flask_login import UserMixin
 from sqlalchemy.types import TypeDecorator, DateTime
 
-from app import db, bcrypt
+from extensions import db, bcrypt
 
 
 class UTCDateTime(TypeDecorator):
@@ -34,11 +34,9 @@ class User(db.Model, UserMixin):
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
     def set_password(self, password):
-        global bcrypt
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
 
     def check_password(self, password):
-        global bcrypt
         return bcrypt.check_password_hash(self.password_hash, password)
 
     def __repr__(self):
