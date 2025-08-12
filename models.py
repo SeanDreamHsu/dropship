@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from flask_login import UserMixin
 from sqlalchemy.types import TypeDecorator, DateTime
 
-from .app import db, bcrypt
+from app import db, bcrypt
 
 
 class UTCDateTime(TypeDecorator):
