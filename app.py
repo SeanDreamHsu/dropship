@@ -8,12 +8,11 @@ import pytz
 import csv
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 from flask_bcrypt import Bcrypt
-from sqlalchemy.types import TypeDecorator, DateTime
 from sqlalchemy import or_
 
 # Load environment variables from .env file (should be at the very top)
@@ -58,59 +57,8 @@ COMPANY_ADDRESS = os.getenv('COMPANY_ADDRESS', '310 E Orangethorpe Ave Ste M Pla
 
 # Define the timezone for display purposes (e.g., Pacific Time)
 DISPLAY_TIMEZONE = pytz.timezone('America/Los_Angeles')
-
-# --- Custom SQLAlchemy Type for UTC Datetimes ---
-class UTCDateTime(TypeDecorator):
-    """
-    A DateTime type that forces UTC and timezone awareness.
-    Stores datetimes as UTC in the database and loads them as timezone-aware UTC datetimes.
-    """
-    impl = DateTime
-    cache_ok = True
-
-    def process_bind_param(self, value, dialect):
-        if value is not None:
-            if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
-            else:
-                return value.astimezone(timezone.utc)
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value is not None:
-            if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
-            return value.astimezone(timezone.utc)
-        return value
-
-# Database Models (defined globally, but they need the 'db' object to be passed/initialized later)
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(20), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    created_at = db.Column(UTCDateTime, default=lambda: datetime.now(timezone.utc))
-    trackings = db.relationship('Tracking', backref='user', lazy=True)
-    is_admin = db.Column(db.Boolean, default=False, nullable=False)
-
-    def set_password(self, password):
-        global bcrypt # Use global bcrypt object
-        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-
-    def check_password(self, password):
-        global bcrypt # Use global bcrypt object
-        return bcrypt.check_password_hash(self.password_hash, password)
-
-    def __repr__(self):
-        return f"<User {self.phone_number} (Admin: {self.is_admin})>"
-
-class Tracking(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    tracking_number = db.Column(db.String(100), nullable=False)
-    timestamp = db.Column(UTCDateTime, default=lambda: datetime.now(timezone.utc))
-
-    def __repr__(self):
-        return f"<Tracking {self.tracking_number}>"
+# Import database models
+from .models import User, Tracking
 
 # Admin required decorator (can be global)
 def admin_required(f):
